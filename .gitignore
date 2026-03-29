@@ -1,0 +1,110 @@
+# -----------------------------
+# Python
+# -----------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.pyd
+*.dll
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Test / coverage / type-check caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pyre/
+.hypothesis/
+.coverage
+.coverage.*
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# -----------------------------
+# Virtual environments
+# -----------------------------
+ai_env/
+.venv/
+venv/
+env/
+ENV/
+
+# -----------------------------
+# Environment / secrets
+# -----------------------------
+.env
+.env.*
+!.env.example
+
+# -----------------------------
+# Frontend (Node/React)
+# -----------------------------
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+frontend/.cache/
+frontend/.parcel-cache/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+frontend/pnpm-debug.log*
+
+# -----------------------------
+# IDE / editor files
+# -----------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# -----------------------------
+# OS files
+# -----------------------------
+.DS_Store
+Thumbs.db
+
+# -----------------------------
+# ML artifacts / large files
+# -----------------------------
+models/saved/**
+!models/saved/model_b/
+!models/saved/model_b/config.json
+!models/saved/model_b/model.safetensors
+!models/saved/model_b/tokenizer.json
+!models/saved/model_b/tokenizer_config.json
+!models/saved/model_a.pkl
+!models/saved/model_c.pkl
+!models/saved/model_c_categories.pkl
+
+# Training/checkpoint artifacts
+models/saved/**/checkpoint-*/
+models/saved/**/optimizer.pt
+models/saved/**/scheduler.pt
+models/saved/**/trainer_state.json
+models/saved/**/training_args.bin
+models/saved/**/rng_state.pth
+*.pt
+*.pth
+*.ckpt
+*.onnx
+
+# Large local datasets (keep small samples only)
+data/*.csv
+!data/README.md
+
+
+
+# Large model files - should not be tracked
+models/saved/
+*.safetensors
+*.pth
+*.pt
+
