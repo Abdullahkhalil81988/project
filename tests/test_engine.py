@@ -7,7 +7,7 @@ Covers:
 """
 
 import pytest
-from router.engine import preprocess_incoming_review, select_model
+from router.engine import detect_language, preprocess_incoming_review, select_model
 
 
 # ---------------------------------------------------------------------------
@@ -108,10 +108,28 @@ class TestSelectModel:
     def test_english_above_80_routes_to_model_b(self):
         assert select_model("en", 200, "apparel") == "model_b"
 
-    @pytest.mark.parametrize("lang", ["fr", "de", "es", "ja", "ar"])
+    @pytest.mark.parametrize("lang", ["ja", "ar", "ru", "it"])
     def test_non_english_routes_to_model_b(self, lang):
         assert select_model(lang, 40, "apparel") == "model_b"
 
     def test_non_english_mid_length_not_model_a(self):
         """Even with ideal text length, non-English should not go to model_a."""
-        assert select_model("fr", 40, "kitchen") != "model_a"
+        assert select_model("it", 40, "kitchen") != "model_a"
+
+    @pytest.mark.parametrize("lang", ["de", "es", "fr"])
+    def test_model_a_supported_multilingual_routes_to_model_a(self, lang):
+        assert select_model(lang, 40, "apparel") == "model_a"
+
+
+class TestLanguageDetection:
+    def test_detect_language_german(self):
+        detected = detect_language("Das Produkt ist sehr gut und ich bin sehr zufrieden mit der Qualitat")
+        assert detected == "de"
+
+    def test_detect_language_spanish(self):
+        detected = detect_language("Este producto es muy bueno y estoy muy satisfecho con la calidad")
+        assert detected == "es"
+
+    def test_detect_language_french(self):
+        detected = detect_language("Ce produit est tres bon et je suis tres satisfait de la qualite")
+        assert detected == "fr"

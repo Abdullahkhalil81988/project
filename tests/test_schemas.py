@@ -18,6 +18,10 @@ from api.schemas import ReviewRequest, PredictionResponse, HealthResponse
 # ReviewRequest
 # ---------------------------------------------------------------------------
 class TestReviewRequestValid:
+    def test_missing_language_allowed(self):
+        req = ReviewRequest(review_body="Great product", product_category="electronics")
+        assert req.language is None
+
     def test_minimal_valid_request(self):
         req = ReviewRequest(review_body="Great product", language="en", product_category="electronics")
         assert req.review_body == "Great product"
@@ -77,10 +81,6 @@ class TestReviewRequestInvalid:
     def test_missing_review_body_rejected(self):
         with pytest.raises(ValidationError):
             ReviewRequest(language="en", product_category="electronics")
-
-    def test_missing_language_rejected(self):
-        with pytest.raises(ValidationError):
-            ReviewRequest(review_body="Good", product_category="electronics")
 
     def test_missing_product_category_rejected(self):
         with pytest.raises(ValidationError):

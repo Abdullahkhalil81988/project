@@ -6,7 +6,7 @@ path, then verifies the output shape and values are valid.
 
 Routing rules (from router/engine.py):
   model_c  — product_category in {book, digital_ebook_purchase, electronics, pc}
-  model_a  — language == "en" AND 15 <= text_length < 80 (other categories)
+    model_a  — language in {en,de,es,fr} AND 15 <= text_length < 80 (other categories)
   model_b  — everything else (non-English, or English outside 15-79 words)
 """
 
@@ -22,6 +22,9 @@ from router.engine import run_inference
 # Skip entire module if saved models are not present
 # ---------------------------------------------------------------------------
 MODEL_A_PATH = "models/saved/model_a.pkl"
+MODEL_A_DE_PATH = "models/saved/model_a_de.pkl"
+MODEL_A_ES_PATH = "models/saved/model_a_es.pkl"
+MODEL_A_FR_PATH = "models/saved/model_a_fr.pkl"
 MODEL_B_PATH = "models/saved/model_b"
 MODEL_C_PATH = "models/saved/model_c.pkl"
 MODEL_C_CAT_PATH = "models/saved/model_c_categories.pkl"
@@ -40,8 +43,14 @@ def models():
     tokenizer_b = AutoTokenizer.from_pretrained(MODEL_B_PATH)
     model_b = AutoModelForSequenceClassification.from_pretrained(MODEL_B_PATH).to(device)
     model_b.eval()
+    model_a_by_language = {"en": joblib.load(MODEL_A_PATH)}
+    for lang, path in [("de", MODEL_A_DE_PATH), ("es", MODEL_A_ES_PATH), ("fr", MODEL_A_FR_PATH)]:
+        if os.path.exists(path):
+            model_a_by_language[lang] = joblib.load(path)
+
     return {
-        "model_a":           joblib.load(MODEL_A_PATH),
+        "model_a":           model_a_by_language["en"],
+        "model_a_by_language": model_a_by_language,
         "model_b":           model_b,
         "model_b_tokenizer": tokenizer_b,
         "model_c":           joblib.load(MODEL_C_PATH),
@@ -60,6 +69,8 @@ def assert_valid_result(result: dict, expected_model: str):
     assert 0.0 <= result["confidence"] <= 1.0
     assert result["model_used"].startswith(expected_model), \
         f"Expected model '{expected_model}', got '{result['model_used']}'"
+    assert result.get("resolved_language") is not None
+    assert isinstance(result.get("language_was_detected"), bool)
 
 
 # ---------------------------------------------------------------------------
@@ -112,11 +123,11 @@ class TestRouteModelA:
 
 
 # ---------------------------------------------------------------------------
-# Model B path  (non-English → always model_b)
+# Model B path
 # ---------------------------------------------------------------------------
 class TestRouteModelB:
-    BODY = "Produit excellent, je suis très satisfait de la qualité et de la livraison rapide."
-    LANG = "fr"
+    BODY = "Prodotto eccellente, sono molto soddisfatto della qualita e della consegna rapida."
+    LANG = "it"
     CAT  = "apparel"
 
     def test_routes_to_model_b(self, models):
@@ -143,7 +154,12 @@ class TestRouteModelB:
     def test_german_review(self, models):
         body = "Sehr gutes Produkt, bin sehr zufrieden mit der Qualität und dem Preis."
         result = run_inference(body, "de", "apparel", models)
-        assert result["model_used"] == "model_b"
+        assert result["model_used"] in (
+            "model_a_de",
+            "model_b",
+            "model_b_language_fallback",
+            "model_b_escalated",
+        )
         assert 1 <= result["predicted_stars"] <= 5
 
 
@@ -181,7 +197,13 @@ class TestRouteModelC:
                 "et l'histoire m'a tenu en haleine jusqu'à la dernière page.")
         result = run_inference(body, "fr", "book", models)
         assert result["model_used"] == "model_c"
-        assert result.get("base_model_used") == "model_b"
+        assert result.get("base_model_used") in ("model_a_fr", "model_b")
+
+    def test_language_detected_when_not_provided(self, models):
+        body = "Este producto es muy bueno y estoy muy satisfecho con la calidad"
+        result = run_inference(body, None, "apparel", models)
+        assert result.get("resolved_language") == "es"
+        assert result.get("language_was_detected") is True
 
     def test_electronics_category_routes_to_model_c(self, models):
         body = ("Great laptop, fast processor and excellent battery life. "

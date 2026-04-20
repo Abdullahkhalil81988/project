@@ -42,6 +42,10 @@ ENV/
 .env
 .env.*
 !.env.example
+firebase-service-account.json
+*firebase-adminsdk-*.json
+uvicorn.stdout.log
+uvicorn.stderr.log
 
 # -----------------------------
 # Frontend (Node/React)

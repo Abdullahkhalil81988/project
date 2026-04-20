@@ -11,3 +11,4 @@ torch
 datasets
 pydantic
 locust
+firebase-admin

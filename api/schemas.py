@@ -1,4 +1,5 @@
-from typing import Optional, Literal
+from datetime import datetime
+from typing import Any, Optional, Literal
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -18,11 +19,11 @@ class ReviewRequest(BaseModel):
         description="Optional title of the review. If omitted, the first 5 words of the body are used.",
         examples=["Great product"],
     )
-    language: str = Field(
-        ...,
+    language: Optional[str] = Field(
+        None,
         min_length=2,
         max_length=10,
-        description="ISO 639-1 language code of the review (e.g. 'en', 'fr', 'de').",
+        description="Optional ISO 639-1 language code (e.g. 'en', 'fr', 'de'). If omitted, API auto-detects language.",
         examples=["en"],
     )
     product_category: str = Field(
@@ -48,10 +49,13 @@ class ReviewRequest(BaseModel):
             return stripped if stripped else None
         return v
 
-    @field_validator("language")
+    @field_validator("language", mode="before")
     @classmethod
-    def language_normalise(cls, v: str) -> str:
-        return v.lower().strip()
+    def language_normalise(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        cleaned = str(v).lower().strip()
+        return cleaned or None
 
     @field_validator("product_category")
     @classmethod
@@ -84,6 +88,26 @@ class PredictionResponse(BaseModel):
     base_model_used: Optional[str] = Field(
         None, description="For Model C: which base model generated the feature vector."
     )
+    inference_id: Optional[str] = Field(
+        None,
+        description="Firestore inference record ID when persistence is enabled.",
+    )
+    queued_for_review: bool = Field(
+        False,
+        description="True when this prediction was queued for human review.",
+    )
+    review_reasons: list[str] = Field(
+        default_factory=list,
+        description="Reasons this item was added to human review queue.",
+    )
+    resolved_language: Optional[str] = Field(
+        None,
+        description="Final language used by routing/inference (provided or auto-detected).",
+    )
+    language_was_detected: bool = Field(
+        False,
+        description="True when language was auto-detected because request language was omitted.",
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -106,6 +130,68 @@ class HealthResponse(BaseModel):
     status: Literal["ok", "degraded"] = Field(..., description="'ok' if all models loaded.")
     models_loaded: bool = Field(..., description="True when all models are in memory.")
     detail: Optional[str] = Field(None, description="Error detail when models failed to load.")
+    firestore_connected: Optional[bool] = Field(
+        None,
+        description="True when Firestore client is available.",
+    )
+
+
+class HumanReviewQueueItem(BaseModel):
+    """A queue item requiring human label verification."""
+
+    id: str
+    inference_id: str
+    reasons: list[str] = Field(default_factory=list)
+    priority: int = Field(3, ge=1, le=5)
+    status: str
+    assigned_to: Optional[str] = None
+    created_at: Optional[datetime] = None
+    inference: Optional[dict[str, Any]] = None
+
+
+class HumanLabelRequest(BaseModel):
+    """Payload submitted by reviewer for a queued prediction."""
+
+    human_stars: int = Field(..., ge=1, le=5)
+    reviewer_id: str = Field(..., min_length=1, max_length=100)
+    notes: Optional[str] = Field(None, max_length=2000)
+
+
+class HumanLabelResponse(BaseModel):
+    """Result of a successful human labeling action."""
+
+    queue_id: str
+    inference_id: str
+    status: str
+    human_stars: int = Field(..., ge=1, le=5)
+
+
+class DriftMetricResponse(BaseModel):
+    """Single drift metric persisted in Firestore."""
+
+    id: Optional[str] = None
+    metric_name: str
+    metric_value: float
+    warn_threshold: float
+    threshold: float
+    status: Literal["ok", "warn", "alert"]
+    baseline_count: int
+    current_count: int
+    window_start: Optional[datetime] = None
+    window_end: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+
+
+class DriftRunResponse(BaseModel):
+    """Summary from drift detection execution."""
+
+    status: Literal["ok", "warn", "alert", "insufficient_data"]
+    baseline_count: int
+    current_count: int
+    window_start: Optional[datetime] = None
+    window_end: Optional[datetime] = None
+    metrics: list[DriftMetricResponse] = Field(default_factory=list)
+    message: Optional[str] = None
 
 
 class ErrorResponse(BaseModel):
