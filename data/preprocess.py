@@ -1,6 +1,9 @@
 import pandas as pd
 
 
+#data link: https://www.kaggle.com/datasets/mexwell/amazon-reviews-multi
+#since dataset is large and LMS doesnt allow large files datalink is provided
+
 def main():
     df = pd.read_csv("data/train.csv")
 
